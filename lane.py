@@ -48,23 +48,40 @@ def make_coordinates(image, line_parameters):
     return np.array([x1, y1, x2, y2])
 
 def average_slope_intercept(image, lines):
-    left_fit = [] # Coordinates from lines on left-side of lane
-    right_fit = [] # Coordinates from lines on right-side of lane
+    left_fit = []  # Coordinates from lines on the left side of the lane
+    right_fit = []  # Coordinates from lines on the right side of the lane
+
+    if lines is None:
+        # If no lines detected, return an empty array
+        return np.array([])
+
     for line in lines:
         x1, y1, x2, y2 = line.reshape(4)
-        parameters = np.polyfit((x1, x2), (y1,y2), 1)
+        parameters = np.polyfit((x1, x2), (y1, y2), 1)  # Slope and intercept
         slope = parameters[0]
         intercept = parameters[1]
-        if slope < 0: 
+        if slope < 0:  # Negative slope indicates left side
             left_fit.append((slope, intercept))
-        else:
+        else:  # Positive slope indicates right side
             right_fit.append((slope, intercept))
-    left_fit_avg = np.average(left_fit, axis=0)
-    right_fit_avg = np.average(right_fit, axis=0)    
-    left_line = make_coordinates(image, left_fit_avg)
-    right_line = make_coordinates(image, right_fit_avg)
-    return np.array([left_line, right_line])
-    
+
+    if left_fit:  # Check if `left_fit` has data
+        left_fit_avg = np.average(left_fit, axis=0)
+        left_line = make_coordinates(image, left_fit_avg)
+    else:
+        left_line = np.array([])  # Return an empty array if no left lines found
+
+    if right_fit:  # Check if `right_fit` has data
+        right_fit_avg = np.average(right_fit, axis=0)
+        right_line = make_coordinates(image, right_fit_avg)
+    else:
+        right_line = np.array([])  # Return an empty array if no right lines found
+
+    if left_line.size and right_line.size:  # Ensure both lines are non-empty
+        return np.array([left_line, right_line])
+    else:
+        # If either line is empty, return empty array
+        return np.array([])
 
 # image = cv2.imread('/Users/danieldayto/Coding/cars/data/Lane_Original.jpg')
 # lane_image = np.copy(image) 
@@ -76,18 +93,46 @@ def average_slope_intercept(image, lines):
 # line_image = display_lines(lane_image, averaged_lines)
 # processed_image = cv2.addWeighted(lane_image, 0.8, line_image, 1, 1)
 
-vid_cap = cv2.VideoCapture('./data/Lane_Video.mp4')
-while (vid_cap.isOpened()):
-    _, frame = vid_cap.read()
-    print(f"Frame: {frame}")
+# vid_cap = cv2.VideoCapture('./data/Lane_Video.mp4') 
+# while (vid_cap.isOpened()):
+#     _, frame = vid_cap.read()
+#     print(f"Frame: {frame}")
+#     edges = detect_edges(frame)
+#     cropped_image = region_of_interest(edges)
+#     detected_lines = cv2.HoughLinesP(cropped_image, 2, np.pi/180, 100, np.array([]), minLineLength=40, maxLineGap=5)
+#     averaged_lines = average_slope_intercept(frame, detected_lines)
+#     line_image = display_lines(frame, averaged_lines)
+#     processed_image = cv2.addWeighted(frame, 0.8, line_image, 1,1)
+#     cv2.imshow('result', processed_image)
+#     if cv2.waitKey(1) & 0xFF == ord('q'): 
+#         break
+# vid_cap.release()
+# cv2.destroyAllWindows()
+
+# Capture webcam
+cap = cv2.VideoCapture(0)  # Capture from default webcam
+
+while cap.isOpened():
+    ret, frame = cap.read()  # Read frame from webcam
+
+    if not ret:
+        break  # If no frame, stop the loop
+
+    # Lane detection process
     edges = detect_edges(frame)
     cropped_image = region_of_interest(edges)
     detected_lines = cv2.HoughLinesP(cropped_image, 2, np.pi/180, 100, np.array([]), minLineLength=40, maxLineGap=5)
     averaged_lines = average_slope_intercept(frame, detected_lines)
     line_image = display_lines(frame, averaged_lines)
-    processed_image = cv2.addWeighted(frame, 0.8, line_image, 1,1)
+    processed_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
+
+    # Display the result
     cv2.imshow('result', processed_image)
-    if cv2.waitKey(1) & 0xFF == ord('q'): 
+
+    # Exit on 'q' key press
+    if cv2.waitKey(30) & 0xFF == ord('q'):
         break
-vid_cap.release()
+
+# Release resources
+cap.release()
 cv2.destroyAllWindows()
